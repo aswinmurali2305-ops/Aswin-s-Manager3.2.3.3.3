@@ -1,0 +1,950 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Aswin's Money Manager</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+body{
+background:#e5e7eb;
+}
+
+.dark{
+background:#000!important;
+color:white;
+}
+
+.dark .bg-white{
+background:#1f2937!important;
+}
+
+.page{
+display:none;
+}
+
+.active{
+display:block;
+}
+</style>
+
+</head>
+
+
+<body id="body">
+
+
+<div class="flex justify-between p-3 bg-blue-600 text-white">
+
+<button onclick="location.reload()">🔄</button>
+
+<h1 class="font-bold">
+Aswin's Money Manager
+</h1>
+
+<button onclick="toggleDark()">🌙</button>
+
+</div>
+
+
+
+<div class="flex justify-around bg-gray-300 p-2 text-sm">
+
+<button onclick="showPage('dashboard')">
+Dashboard
+</button>
+
+<button onclick="showPage('log')">
+Log
+</button>
+
+<button onclick="showPage('clients')">
+Clients
+</button>
+
+<button onclick="showPage('calendar')">
+Calendar
+</button>
+
+</div>
+
+
+
+<!-- DASHBOARD -->
+
+<div id="dashboard" class="page active p-3">
+
+
+<div class="grid grid-cols-2 gap-2 mb-3">
+
+
+<div class="bg-white p-2 rounded">
+Monthly:
+<span id="monthCount">0</span>
+</div>
+
+
+<div class="bg-white p-2 rounded">
+Weekly:
+<span id="weekCount">0</span>
+</div>
+
+
+<div class="bg-white p-2 rounded">
+Received:
+$<span id="received">0</span>
+</div>
+
+
+<div class="bg-white p-2 rounded">
+Pending:
+$<span id="pending">0</span>
+</div>
+
+
+</div>
+
+
+
+<div class="bg-white p-3 rounded">
+
+<input id="name"
+placeholder="Customer Name"
+class="border p-1 w-full mb-2">
+
+
+<input type="date"
+id="date"
+class="border p-1 w-full mb-2">
+
+
+<input type="time"
+id="time"
+class="border p-1 w-full mb-2">
+
+
+<button onclick="addService()"
+class="bg-blue-500 text-white px-3 py-1 rounded">
+
+Add
+
+</button>
+
+
+</div>
+
+
+
+<div class="flex gap-2 mt-3">
+
+
+<button onclick="exportExcel()"
+class="bg-green-500 text-white p-2 w-full">
+
+Export CSV
+
+</button>
+
+
+<button onclick="exportPDF()"
+class="bg-red-500 text-white p-2 w-full">
+
+Export PDF
+
+</button>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+<!-- LOG -->
+
+<div id="log" class="page p-3">
+
+<h2 class="font-bold">
+Log History
+</h2>
+
+
+<input type="date" id="startDate"
+class="border p-1">
+
+
+<input type="date" id="endDate"
+class="border p-1">
+
+
+<button onclick="filterLogs()"
+class="bg-blue-500 text-white px-2">
+
+Filter
+
+</button>
+
+
+<div id="logList"></div>
+
+
+</div>
+
+
+
+
+
+<!-- CLIENTS -->
+
+<div id="clients" class="page p-3">
+
+<h2 class="font-bold">
+Clients
+</h2>
+
+
+<input type="date" id="clientStart"
+class="border p-1">
+
+
+<input type="date" id="clientEnd"
+class="border p-1">
+
+
+<button onclick="filterClients()"
+class="bg-blue-500 text-white px-2">
+
+Filter
+
+</button>
+
+
+<div id="clientList"></div>
+
+
+</div>
+
+
+
+
+
+<!-- CALENDAR -->
+
+
+<div id="calendar" class="page p-3">
+
+
+<input type="date"
+id="calDate"
+onchange="showCalendarLogs()"
+class="border">
+
+
+<div id="calLogs"></div>
+
+
+</div>
+
+
+
+
+
+<script>
+
+
+let logs =
+JSON.parse(localStorage.getItem("logs")) || [];
+
+
+
+
+
+function save(){
+
+localStorage.setItem(
+"logs",
+JSON.stringify(logs)
+);
+
+updateStats();
+
+
+if(document.getElementById("log").classList.contains("active"))
+renderLogs();
+
+
+if(document.getElementById("clients").classList.contains("active"))
+renderClients();
+
+
+}
+
+
+
+
+
+
+function showPage(id){
+
+document.querySelectorAll(".page")
+.forEach(p=>p.classList.remove("active"));
+
+
+document.getElementById(id)
+.classList.add("active");
+
+
+if(id=="log")
+renderLogs();
+
+
+if(id=="clients")
+renderClients();
+
+
+}
+
+
+
+
+
+
+function toggleDark(){
+
+document.body.classList.toggle("dark");
+
+}
+
+
+
+
+
+
+function normalizeName(n){
+
+return n.trim().toLowerCase();
+
+}
+
+
+
+function formatName(n){
+
+n=n.trim();
+
+return n.charAt(0).toUpperCase()
++n.slice(1).toLowerCase();
+
+}
+
+
+
+function formatDate(d){
+
+let p=d.split("-");
+
+return new Date(
+p[0],
+p[1]-1,
+p[2]
+)
+.toLocaleDateString(
+"en-GB",
+{
+day:"2-digit",
+month:"short",
+year:"numeric"
+});
+
+}
+
+
+
+
+
+function formatTime(t){
+
+let x=t.split(":");
+
+let h=Number(x[0]);
+
+let ap=h>=12?"PM":"AM";
+
+h=h%12||12;
+
+return h+":"+x[1]+" "+ap;
+
+}
+
+
+
+
+
+function addService(){
+
+let name=formatName(
+document.getElementById("name").value
+);
+
+let date=document.getElementById("date").value;
+
+let time=document.getElementById("time").value;
+
+
+if(!name||!date||!time)
+return alert("Fill all");
+
+
+
+logs.push({
+
+name,
+date,
+time,
+cost:15,
+paid:false
+
+});
+
+
+save();
+
+
+document.getElementById("name").value="";
+
+
+}
+
+
+
+
+
+
+function updateStats(){
+
+
+let month=new Date().getMonth();
+
+
+let m=0;
+let w=0;
+let r=0;
+let p=0;
+
+
+
+logs.forEach(l=>{
+
+
+let d=new Date(l.date);
+
+
+if(d.getMonth()==month)
+m++;
+
+
+if(l.paid)
+r+=15;
+
+else
+p+=15;
+
+
+});
+
+
+
+document.getElementById("monthCount").innerText=m;
+
+document.getElementById("received").innerText=r;
+
+document.getElementById("pending").innerText=p;
+
+
+}
+
+
+
+
+
+function renderLogs(list=logs){
+
+
+let html="";
+
+
+list.slice(-100).reverse()
+.forEach(l=>{
+
+
+let i=logs.indexOf(l);
+
+
+html+=`
+
+<div class="bg-white p-2 mt-2 rounded">
+
+
+${l.name}
+<br>
+
+${formatDate(l.date)}
+${formatTime(l.time)}
+
+
+
+<div>
+
+
+<button onclick="editLog(${i})"
+class="bg-blue-500 text-white px-2">
+
+Edit
+
+</button>
+
+
+<button onclick="deleteLog(${i})"
+class="bg-red-500 text-white px-2">
+
+Delete
+
+</button>
+
+
+</div>
+
+
+</div>`;
+
+
+});
+
+
+document.getElementById("logList")
+.innerHTML=html;
+
+
+}
+function deleteLog(i){
+
+logs.splice(i,1);
+
+save();
+
+renderLogs();
+
+}
+
+
+
+function editLog(i){
+
+let n=prompt(
+"Edit Name",
+logs[i].name
+);
+
+
+if(n){
+
+logs[i].name=formatName(n);
+
+save();
+
+}
+
+}
+
+
+
+
+function filterLogs(){
+
+let s=document.getElementById("startDate").value;
+
+let e=document.getElementById("endDate").value;
+
+
+let filtered=logs.filter(l=>
+
+(!s || l.date>=s) &&
+
+(!e || l.date<=e)
+
+);
+
+
+renderLogs(filtered);
+
+}
+
+
+
+
+
+function renderClients(list=logs){
+
+
+let clients={};
+
+
+
+list.forEach(l=>{
+
+
+let key=normalizeName(l.name);
+
+
+
+if(!clients[key]){
+
+clients[key]={
+name:l.name,
+pending:0
+};
+
+}
+
+
+if(!l.paid)
+clients[key].pending+=15;
+
+
+});
+
+
+
+let html="";
+
+
+
+Object.values(clients)
+.sort((a,b)=>b.pending-a.pending)
+.forEach(c=>{
+
+
+html+=`
+
+<div onclick="openClient('${c.name}')"
+class="bg-white p-2 mt-2 rounded flex justify-between">
+
+
+<span>${c.name}</span>
+
+
+<span class="text-red-500 font-bold">
+$${c.pending}
+</span>
+
+
+</div>
+
+
+`;
+
+});
+
+
+document.getElementById("clientList")
+.innerHTML=html;
+
+
+}
+
+
+
+
+
+function filterClients(){
+
+
+let s=document.getElementById("clientStart").value;
+
+let e=document.getElementById("clientEnd").value;
+
+
+let f=logs.filter(l=>
+
+(!s||l.date>=s)&&
+(!e||l.date<=e)
+
+);
+
+
+renderClients(f);
+
+
+}
+
+
+
+
+
+function openClient(name){
+
+
+let html=`
+
+<button onclick="renderClients()"
+class="bg-gray-500 text-white px-2">
+
+Back
+
+</button>
+
+
+<h3 class="font-bold">
+${name}
+</h3>
+
+`;
+
+
+
+logs.forEach((l,i)=>{
+
+
+if(normalizeName(l.name)==normalizeName(name)){
+
+
+html+=`
+
+<div class="bg-gray-200 p-2 mt-2">
+
+${formatDate(l.date)}
+${formatTime(l.time)}
+
+
+<br>
+
+
+<button onclick="markPaid(${i})"
+class="bg-green-500 text-white px-2">
+
+${l.paid?"Paid":"Mark Paid"}
+
+</button>
+
+
+<button onclick="deleteLog(${i})"
+class="bg-red-500 text-white px-2">
+
+Delete
+
+</button>
+
+
+</div>
+
+`;
+
+}
+
+});
+
+
+
+html+=`
+
+<button onclick="share('${name}')"
+class="bg-blue-500 text-white p-2 w-full">
+
+WhatsApp
+
+</button>
+
+`;
+
+
+
+document.getElementById("clientList")
+.innerHTML=html;
+
+
+}
+
+
+
+
+function markPaid(i){
+
+logs[i].paid=true;
+
+save();
+
+renderClients();
+
+}
+
+
+
+function markUnpaid(i){
+
+logs[i].paid=false;
+
+save();
+
+}
+
+
+
+
+
+// WHATSAPP SHARING FIX
+// Only this function has been modified.
+
+function share(name){
+
+
+let data=logs.filter(l=>
+
+normalizeName(l.name)==normalizeName(name)
+&& !l.paid
+
+);
+
+
+
+let msg=`Hi ${name},
+
+Pending services:
+
+`;
+
+
+
+data.forEach(l=>{
+
+msg+=
+`${formatDate(l.date)} ${formatTime(l.time)}
+`;
+
+});
+
+
+
+msg+=`
+
+Total Due: $${data.length*15}
+
+`;
+
+
+
+let url=
+"https://api.whatsapp.com/send?text="
++encodeURIComponent(msg);
+
+
+
+window.location.href=url;
+
+
+}
+
+
+
+
+
+function showCalendarLogs(){
+
+
+let d=document.getElementById("calDate").value;
+
+
+let html="";
+
+
+logs.filter(l=>l.date==d)
+.forEach(l=>{
+
+
+html+=`
+
+<div class="bg-white p-2 mt-2">
+
+${l.name}
+${formatTime(l.time)}
+
+</div>
+
+`;
+
+});
+
+
+document.getElementById("calLogs")
+.innerHTML=html;
+
+
+}
+
+
+
+
+
+function exportExcel(){
+
+
+let csv=
+"Name,Date,Time,Status\n";
+
+
+
+logs.forEach(l=>{
+
+
+csv+=
+`${l.name},${l.date},${l.time},${l.paid?"Paid":"Pending"}\n`;
+
+});
+
+
+let blob=new Blob([csv]);
+
+
+let a=document.createElement("a");
+
+a.href=URL.createObjectURL(blob);
+
+a.download="logs.csv";
+
+a.click();
+
+
+}
+
+
+
+
+
+function exportPDF(){
+
+window.print();
+
+}
+
+
+
+
+
+updateStats();
+
+renderLogs();
+
+renderClients();
+
+
+</script>
+
+</body>
+
+</html>
